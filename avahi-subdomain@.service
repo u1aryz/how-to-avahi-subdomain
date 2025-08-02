@@ -1,0 +1,13 @@
+[Unit]
+Description=Publish mDNS alias %i.%H.local
+Requires=avahi-daemon.service
+After=avahi-daemon.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/avahi-publish-subdomain %i
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+	echo "Usage: $0 [-i <interface>] <subdomain>" >&2
+	exit 1
+}
+
+IFACE="wlan0"
+while getopts ":i:h" opt; do
+	case "$opt" in
+	i) IFACE="$OPTARG" ;;
+	h | *) usage ;;
+	esac
+done
+shift $((OPTIND - 1))
+[[ $# -eq 1 ]] || usage
+
+SUBDOMAIN="$1"
+FQDN="${SUBDOMAIN}.$(hostname).local"
+
+if ! ip link show "$IFACE" &>/dev/null; then
+	echo "Interface $IFACE not found." >&2
+	exit 1
+fi
+
+ADDRS=$(ip -o addr show dev "$IFACE" scope global | awk '{print $4}' | cut -d/ -f1)
+[[ -n "$ADDRS" ]] || {
+	echo "No global addresses on $IFACE" >&2
+	exit 1
+}
+
+trap 'kill 0' SIGINT SIGTERM EXIT
+for ADDR in $ADDRS; do
+	/usr/bin/avahi-publish -f -a -R "$FQDN" "$ADDR" &
+done
+wait
