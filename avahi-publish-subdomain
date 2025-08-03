@@ -18,7 +18,7 @@ log_error() {
 	echo -e "${RED}[ERROR]${NC} $*" >&2
 }
 
-usage() {
+show_usage() {
 	cat >&2 <<-EOF
 		Usage: $0 [-i <interface>] <subdomain>
 
@@ -29,7 +29,6 @@ usage() {
 		Arguments:
 		  <subdomain>     Subdomain to publish
 	EOF
-	exit 1
 }
 
 check_dependencies() {
@@ -106,14 +105,19 @@ main() {
 	while getopts ":i:h" opt; do
 		case "$opt" in
 		i) interface="$OPTARG" ;;
-		h) usage ;;
+		h)
+			show_usage
+			exit 0
+			;;
 		\?)
 			log_error "Invalid option -$OPTARG"
-			usage
+			show_usage
+			exit 1
 			;;
 		:)
 			log_error "Option -$OPTARG requires an argument"
-			usage
+			show_usage
+			exit 1
 			;;
 		esac
 	done
@@ -122,7 +126,8 @@ main() {
 	# Validate arguments
 	if [[ $# -ne 1 ]]; then
 		log_error "Exactly one subdomain argument is required."
-		usage
+		show_usage
+		exit 1
 	fi
 
 	local subdomain="$1"
