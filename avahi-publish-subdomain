@@ -1,37 +1,134 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Default interface
+readonly DEFAULT_INTERFACE="wlan0"
+
 usage() {
-	echo "Usage: $0 [-i <interface>] <subdomain>" >&2
+	cat >&2 <<-EOF
+		Usage: $0 [-i <interface>] <subdomain>
+
+		Options:
+		  -i <interface>  Network interface to use (default: $DEFAULT_INTERFACE)
+		  -h              Show this help message
+
+		Arguments:
+		  <subdomain>     Subdomain to publish
+	EOF
 	exit 1
 }
 
-IFACE="wlan0"
-while getopts ":i:h" opt; do
-	case "$opt" in
-	i) IFACE="$OPTARG" ;;
-	h | *) usage ;;
-	esac
-done
-shift $((OPTIND - 1))
-[[ $# -eq 1 ]] || usage
+check_dependencies() {
+	local missing_deps=()
 
-SUBDOMAIN="$1"
-FQDN="${SUBDOMAIN}.$(hostname).local"
+	if ! command -v avahi-publish >/dev/null 2>&1; then
+		missing_deps+=("avahi-publish")
+	fi
 
-if ! ip link show "$IFACE" &>/dev/null; then
-	echo "Interface $IFACE not found." >&2
-	exit 1
-fi
+	if ! command -v ip >/dev/null 2>&1; then
+		missing_deps+=("ip")
+	fi
 
-ADDRS=$(ip -o addr show dev "$IFACE" scope global | awk '{print $4}' | cut -d/ -f1)
-[[ -n "$ADDRS" ]] || {
-	echo "No global addresses on $IFACE" >&2
-	exit 1
+	if [[ ${#missing_deps[@]} -gt 0 ]]; then
+		echo "Error: Missing required dependencies: ${missing_deps[*]}" >&2
+		echo "Please install the avahi-utils package and iproute2 package." >&2
+		exit 1
+	fi
 }
 
-trap 'kill 0' SIGINT SIGTERM EXIT
-for ADDR in $ADDRS; do
-	/usr/bin/avahi-publish -f -a -R "$FQDN" "$ADDR" &
-done
-wait
+validate_interface() {
+	local interface="$1"
+
+	if ! ip link show "$interface" &>/dev/null; then
+		echo "Error: Network interface '$interface' not found." >&2
+		echo "Available interfaces:" >&2
+		ip link show | grep -E '^[0-9]+:' | awk -F': ' '{print "  " $2}' | sed 's/@.*//' >&2
+		exit 1
+	fi
+}
+
+get_interface_addresses() {
+	local interface="$1"
+	local addresses
+
+	addresses=$(ip -o addr show dev "$interface" scope global | awk '{print $4}' | cut -d/ -f1)
+
+	if [[ -z "$addresses" ]]; then
+		echo "Error: No global addresses found on interface '$interface'." >&2
+		exit 1
+	fi
+
+	echo "$addresses"
+}
+
+publish_addresses() {
+	local fqdn="$1"
+	local addresses="$2"
+	local pids=()
+
+	echo "Publishing '$fqdn' with addresses:"
+
+	for addr in $addresses; do
+		echo "  $addr"
+		avahi-publish -f -a -R "$fqdn" "$addr" &
+		pids+=($!)
+	done
+
+	# Wait for all background processes
+	for pid in "${pids[@]}"; do
+		wait "$pid"
+	done
+}
+
+cleanup() {
+	echo "Cleaning up..." >&2
+	kill 0 2>/dev/null || true
+}
+
+main() {
+	local interface="$DEFAULT_INTERFACE"
+
+	# Parse command line options
+	while getopts ":i:h" opt; do
+		case "$opt" in
+		i) interface="$OPTARG" ;;
+		h) usage ;;
+		\?)
+			echo "Error: Invalid option -$OPTARG" >&2
+			usage
+			;;
+		:)
+			echo "Error: Option -$OPTARG requires an argument" >&2
+			usage
+			;;
+		esac
+	done
+	shift $((OPTIND - 1))
+
+	# Validate arguments
+	if [[ $# -ne 1 ]]; then
+		echo "Error: Exactly one subdomain argument is required." >&2
+		usage
+	fi
+
+	local subdomain="$1"
+	local fqdn="${subdomain}.$(hostname).local"
+
+	# Check dependencies
+	check_dependencies
+
+	# Validate interface
+	validate_interface "$interface"
+
+	# Get addresses
+	local addresses
+	addresses=$(get_interface_addresses "$interface")
+
+	# Set up cleanup trap
+	trap cleanup SIGINT SIGTERM EXIT
+
+	# Publish addresses
+	publish_addresses "$fqdn" "$addresses"
+}
+
+main "$@"
