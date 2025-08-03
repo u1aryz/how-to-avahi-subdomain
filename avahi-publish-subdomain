@@ -4,6 +4,20 @@ set -euo pipefail
 # Default interface
 readonly DEFAULT_INTERFACE="wlan0"
 
+# Color codes for output
+readonly RED='\033[0;31m'
+readonly GREEN='\033[0;32m'
+readonly NC='\033[0m' # No Color
+
+# Logging functions
+log_info() {
+	echo -e "${GREEN}[INFO]${NC} $*" >&2
+}
+
+log_error() {
+	echo -e "${RED}[ERROR]${NC} $*" >&2
+}
+
 usage() {
 	cat >&2 <<-EOF
 		Usage: $0 [-i <interface>] <subdomain>
@@ -30,8 +44,8 @@ check_dependencies() {
 	fi
 
 	if [[ ${#missing_deps[@]} -gt 0 ]]; then
-		echo "Error: Missing required dependencies: ${missing_deps[*]}" >&2
-		echo "Please install the avahi-utils package and iproute2 package." >&2
+		log_error "Missing required dependencies: ${missing_deps[*]}"
+		log_error "Please install the avahi-utils package and iproute2 package."
 		exit 1
 	fi
 }
@@ -40,8 +54,8 @@ validate_interface() {
 	local interface="$1"
 
 	if ! ip link show "$interface" &>/dev/null; then
-		echo "Error: Network interface '$interface' not found." >&2
-		echo "Available interfaces:" >&2
+		log_error "Network interface '$interface' not found."
+		log_error "Available interfaces:"
 		ip link show | grep -E '^[0-9]+:' | awk -F': ' '{print "  " $2}' | sed 's/@.*//' >&2
 		exit 1
 	fi
@@ -54,7 +68,7 @@ get_interface_addresses() {
 	addresses=$(ip -o addr show dev "$interface" scope global | awk '{print $4}' | cut -d/ -f1)
 
 	if [[ -z "$addresses" ]]; then
-		echo "Error: No global addresses found on interface '$interface'." >&2
+		log_error "No global addresses found on interface '$interface'."
 		exit 1
 	fi
 
@@ -66,10 +80,10 @@ publish_addresses() {
 	local addresses="$2"
 	local pids=()
 
-	echo "Publishing '$fqdn' with addresses:"
+	log_info "Publishing '$fqdn' with addresses:"
 
 	for addr in $addresses; do
-		echo "  $addr"
+		log_info "  $addr"
 		avahi-publish -f -a -R "$fqdn" "$addr" &
 		pids+=($!)
 	done
@@ -81,7 +95,7 @@ publish_addresses() {
 }
 
 cleanup() {
-	echo "Cleaning up..." >&2
+	log_info "Cleaning up..."
 	kill 0 2>/dev/null || true
 }
 
@@ -94,11 +108,11 @@ main() {
 		i) interface="$OPTARG" ;;
 		h) usage ;;
 		\?)
-			echo "Error: Invalid option -$OPTARG" >&2
+			log_error "Invalid option -$OPTARG"
 			usage
 			;;
 		:)
-			echo "Error: Option -$OPTARG requires an argument" >&2
+			log_error "Option -$OPTARG requires an argument"
 			usage
 			;;
 		esac
@@ -107,7 +121,7 @@ main() {
 
 	# Validate arguments
 	if [[ $# -ne 1 ]]; then
-		echo "Error: Exactly one subdomain argument is required." >&2
+		log_error "Exactly one subdomain argument is required."
 		usage
 	fi
 
