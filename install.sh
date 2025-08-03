@@ -91,20 +91,19 @@ install_files() {
 
 # Display usage information
 show_usage() {
-	cat <<EOF
-Usage: $SCRIPT_NAME [OPTIONS]
+	cat >&2 <<-EOF
+		Usage: $SCRIPT_NAME [OPTIONS]
 
-Install avahi-publish-subdomain script and systemd service.
+		Install avahi-publish-subdomain script and systemd service.
 
-OPTIONS:
-    -h, --help      Show this help message
-    -v, --verbose   Enable verbose output
+		OPTIONS:
+				-h, --help      Show this help message
+				-v, --verbose   Enable verbose output
 
-EXAMPLES:
-    $SCRIPT_NAME                # Install with default settings
-    $SCRIPT_NAME --verbose      # Install with verbose output
-
-EOF
+		EXAMPLES:
+				$SCRIPT_NAME                # Install with default settings
+				$SCRIPT_NAME --verbose      # Install with verbose output
+	EOF
 }
 
 # Parse command line arguments
