@@ -62,16 +62,68 @@ validate_interface() {
 
 get_interface_addresses() {
 	local interface="$1"
-	local addresses
+	local ipv4_addresses
+	local ipv6_addresses
+	local retry_count=0
+	local max_retries=3
+	local retry_interval=10
 
-	addresses=$(ip -o addr show dev "$interface" scope global | awk '{print $4}' | cut -d/ -f1)
+	# Get IPv4 addresses with retry logic
+	while [[ $retry_count -le $max_retries ]]; do
+		ipv4_addresses=$(ip -4 -o addr show dev "$interface" scope global | awk '{print $4}' | cut -d/ -f1)
 
-	if [[ -z "$addresses" ]]; then
+		if [[ -n "$ipv4_addresses" ]]; then
+			break
+		fi
+
+		if [[ $retry_count -lt $max_retries ]]; then
+			log_info "No IPv4 addresses found on interface '$interface'. Retrying in $retry_interval seconds... (attempt $((retry_count + 1))/$max_retries)"
+			sleep $retry_interval
+		fi
+
+		((retry_count++))
+	done
+
+	# Check if we have IPv4 addresses after retries
+	if [[ -z "$ipv4_addresses" ]]; then
+		log_error "No IPv4 addresses found on interface '$interface' after $max_retries retries."
+		exit 1
+	fi
+
+	# Reset retry count for IPv6
+	retry_count=0
+
+	# Get IPv6 addresses with retry logic
+	while [[ $retry_count -le $max_retries ]]; do
+		ipv6_addresses=$(ip -6 -o addr show dev "$interface" scope global | awk '{print $4}' | cut -d/ -f1)
+
+		if [[ -n "$ipv6_addresses" ]]; then
+			break
+		fi
+
+		if [[ $retry_count -lt $max_retries ]]; then
+			log_info "No IPv6 addresses found on interface '$interface'. Retrying in $retry_interval seconds... (attempt $((retry_count + 1))/$max_retries)"
+			sleep $retry_interval
+		fi
+
+		((retry_count++))
+	done
+
+	# Check if we have IPv6 addresses after retries
+	if [[ -z "$ipv6_addresses" ]]; then
+		log_error "No IPv6 addresses found on interface '$interface' after $max_retries retries."
+		exit 1
+	fi
+
+	# Combine IPv4 and IPv6 addresses
+	local all_addresses="$ipv4_addresses"$'\n'"$ipv6_addresses"
+
+	if [[ -z "$all_addresses" ]]; then
 		log_error "No global addresses found on interface '$interface'."
 		exit 1
 	fi
 
-	echo "$addresses"
+	echo "$all_addresses"
 }
 
 publish_addresses() {
