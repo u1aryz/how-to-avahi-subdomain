@@ -82,11 +82,6 @@ get_interface_addresses() {
 	# Combine IPv4 and IPv6 addresses
 	local all_addresses="$ipv4_addresses"$'\n'"$ipv6_addresses"
 
-	if [[ -z "$all_addresses" ]]; then
-		log_error "No global addresses found on interface '$interface'."
-		exit 1
-	fi
-
 	echo "$all_addresses"
 }
 
