@@ -97,7 +97,7 @@ publish_addresses() {
 	done
 
 	# Wait for all background processes
-	wait -n
+	wait
 }
 
 main() {
