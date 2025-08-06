@@ -34,17 +34,14 @@ show_usage() {
 check_dependencies() {
 	local missing_deps=()
 
-	if ! command -v avahi-publish >/dev/null 2>&1; then
-		missing_deps+=("avahi-publish")
-	fi
-
-	if ! command -v ip >/dev/null 2>&1; then
-		missing_deps+=("ip")
-	fi
+	for cmd in avahi-publish ip; do
+		if ! command -v "$cmd" &>/dev/null; then
+			missing_deps+=("$cmd")
+		fi
+	done
 
 	if [[ ${#missing_deps[@]} -gt 0 ]]; then
 		log_error "Missing required dependencies: ${missing_deps[*]}"
-		log_error "Please install the avahi-utils package and iproute2 package."
 		exit 1
 	fi
 }
