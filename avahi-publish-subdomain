@@ -142,8 +142,7 @@ main() {
 	validate_interface "$interface"
 
 	# Get addresses
-	local addresses
-	addresses=$(get_interface_addresses "$interface")
+	local addresses=$(get_interface_addresses "$interface")
 
 	# Publish addresses
 	publish_addresses "$fqdn" "$addresses"
