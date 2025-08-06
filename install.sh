@@ -32,7 +32,7 @@ log_error() {
 # Check system requirements
 check_requirements() {
 	local missing_deps=()
-	local required_commands=("curl" "sudo")
+	local required_commands=("curl" "sudo" "install")
 
 	for cmd in "${required_commands[@]}"; do
 		if ! command -v "$cmd" &>/dev/null; then
