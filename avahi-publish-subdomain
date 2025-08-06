@@ -33,8 +33,9 @@ show_usage() {
 
 check_dependencies() {
 	local missing_deps=()
+	local required_commands=("avahi-publish" "ip")
 
-	for cmd in avahi-publish ip; do
+	for cmd in "${required_commands[@]}"; do
 		if ! command -v "$cmd" &>/dev/null; then
 			missing_deps+=("$cmd")
 		fi
