@@ -31,7 +31,7 @@ show_usage() {
 	EOF
 }
 
-check_dependencies() {
+check_requirements() {
 	local missing_deps=()
 	local required_commands=("avahi-publish" "ip")
 
@@ -134,7 +134,7 @@ main() {
 	local fqdn="${subdomain}.$(hostname).local"
 
 	# Check dependencies
-	check_dependencies
+	check_requirements
 
 	# Validate interface
 	validate_interface "$interface"
