@@ -1,5 +1,7 @@
 # mDNS Subdomain Addition
 
+[![MIT License](https://img.shields.io/github/license/u1aryz/how-to-avahi-subdomain?color=blue)](LICENSE)
+
 A simple tool to add mDNS subdomains using Avahi.
 
 ## Overview
